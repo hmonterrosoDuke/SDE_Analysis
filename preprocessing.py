@@ -53,8 +53,8 @@ def preprocess_data(site_data, norm_pctle = 0.995, dt = 15):
     return y_norm, acf, timescale, idx
 
 
-def create_site_dictionary(y, dt=15, omega=0.49, c=2, std_window=50):
-    y_norm, acf, timescale, idx = preprocess_data(y, norm_pctle=0.995, dt=dt)
+def create_site_dictionary(site_data, dt=15, omega=0.49, c=2, std_window=50):
+    y_norm, acf, timescale, idx = preprocess_data(site_data, norm_pctle=0.995, dt=dt)
     dy = np.diff(y_norm)
     
     local_std = pd.Series(y_norm).rolling(std_window, center=True, min_periods=10).std().values

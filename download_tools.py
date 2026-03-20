@@ -53,16 +53,16 @@ def get_all_sites(site_ids, target_folder, start_date, end_date):
         path = os.path.join(target_folder, file_name)
 
         if os.path.exists(path):
-            df = pd.read_csv(path)
-            y = get_gage_height(df)
-            raw_data[site_id] = y
+            df = pd.read_csv(path, index_col=0, parse_dates=True)
+            # y = get_gage_height(df)
+            raw_data[site_id] = df
 
         else: 
             print(f"Downloading {site_id}...")
             try:
                 site_data = download_iv(site_id, start_date, end_date)
-                y = get_gage_height(site_data)
-                raw_data[site_id] = y
+                # y = get_gage_height(site_data)
+                raw_data[site_id] = site_data
                 print(f"  ✓ {len(site_data)} observations")
 
                 site_data.to_csv(path)
