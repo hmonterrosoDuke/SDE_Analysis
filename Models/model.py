@@ -3,9 +3,34 @@ import numpy as np
 class Model:
     """Base class for drift models."""
     
-    def __init__(self):
+    def __init__(self, upper_trim = None, use_weights = False, fit_log = False):
         self.params = {}
         self.fitted = False
+        self.fit_log = fit_log
+        self.use_weights = use_weights
+        self.upper_trim = upper_trim
+
+    def _preprocess(self, edges, F):
+
+        mask = np.isfinite(edges) & np.isfinite(F)
+        x = edges[mask]
+        y = F[mask]
+        
+        # Trim upper tail
+        if self.upper_trim is not None:
+            y_max = np.quantile(x, self.upper_trim)
+            trim_mask = x <= y_max
+            x = x[trim_mask]
+            y = y[trim_mask]
+        
+        # Compute weights
+        if self.use_weights:
+            # Weight inversely by magnitude — equal importance across scales
+            weights = 1 / (np.abs(y) + 1e-10)
+        else:
+            weights = np.ones_like(y)
+        
+        return x, y, weights
     
     def fit(self, edges, F):
         """Fit the model to data. Override in subclass."""

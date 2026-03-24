@@ -38,7 +38,7 @@ def get_gage_height(df: pd.DataFrame) -> pd.Series:
     return df[cols[0]].to_numpy()
 
 
-def get_all_sites(site_ids, target_folder, start_date, end_date):
+def get_all_sites(site_ids, target_folder, start_date, end_date, download = True):
     """get data for multiple sites. Download if site is not in csv saved
     
     Returns
@@ -57,7 +57,7 @@ def get_all_sites(site_ids, target_folder, start_date, end_date):
             # y = get_gage_height(df)
             raw_data[site_id] = df
 
-        else: 
+        elif download: 
             print(f"Downloading {site_id}...")
             try:
                 site_data = download_iv(site_id, start_date, end_date)
