@@ -23,7 +23,7 @@ class ProductModel(Model):
         sigma = 1/weights
     
         popt, _ = curve_fit(model, x, y, p0=[-1e-4, 0.01, 2.0], sigma = sigma,
-                            bounds=([-5, 0, 0.5], [2, 10, 8]), maxfev=5000)
+                            bounds=([-5, -2, 0.1], [2, 10, 10]), maxfev=5000)
         m, a, alpha = popt
 
         

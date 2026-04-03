@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from statsmodels.tsa.seasonal import STL
 
 def compute_acf(y, max_lag=None):
     y = np.asarray(y, dtype=float)
@@ -40,21 +41,47 @@ def integral_timescale(acf, dt=1.0):
     
     return T, idx
 
-def preprocess_data(site_data, norm_pctle = 0.995, dt = 15):
+def deseasonalize(y, timestamps, method='stl'):
+    """
+    Remove seasonal signal from stage data before KM estimation.
+    
+    method='climatology' : subtract median by day-of-year (fast, nonparametric)
+    method='stl'         : STL decomposition, returns remainder only
+    """
+    if method == 'climatology':
+        doy = timestamps.dayofyear  # DatetimeIndex → no .dt needed
+        df_tmp = pd.Series(y.values, index=doy)
+        seasonal = df_tmp.groupby(level=0).transform('median')
+        seasonal.index = y.index
+        return y - seasonal, seasonal
+
+    elif method == 'stl':
+        # STL needs regular index — resample to hourly if 15-min
+        stl = STL(y, period=365*24*4, robust=True)  # 4 obs/hr * 24hr * 365
+        res = stl.fit()
+        return pd.Series(res.resid, index=y.index), \
+               pd.Series(res.seasonal, index=y.index)
+
+def preprocess_data(site_data, norm_pctle = 0.995, dt = 15, deseasonalize_method=None):
     y = site_data['00065']
     y_intrp = y.interpolate(method='time').dropna()
     y_intrp = y_intrp - np.median(y_intrp)
-    y_norm = y_intrp/np.quantile(y_intrp,norm_pctle)
 
+    seasonal_component = None
+    if deseasonalize_method is not None:
+        y_intrp, seasonal_component = deseasonalize(
+            y_intrp, y_intrp.index, method=deseasonalize_method)
+
+    y_norm = y_intrp/np.quantile(y_intrp,norm_pctle)
     acf = compute_acf(y_norm)
     y_norm = y_norm - np.min(y_norm)
     timescale, idx = integral_timescale(acf, dt = dt)
 
-    return y_norm, acf, timescale, idx
+    return y_norm, acf, timescale, idx, seasonal_component
 
 
-def create_site_dictionary(site_data, dt=15, omega=0.49, c=2, std_window=50):
-    y_norm, acf, timescale, idx = preprocess_data(site_data, norm_pctle=0.995, dt=dt)
+def create_site_dictionary(site_data, dt=15, omega=0.49, c=2, std_window=50, deseasonalize_method= None):
+    y_norm, acf, timescale, idx, seasonal_component = preprocess_data(site_data, norm_pctle=0.995, dt=dt, deseasonalize_method=deseasonalize_method)
     dy = np.diff(y_norm)
     
     local_std = pd.Series(y_norm).rolling(std_window, center=True, min_periods=10).std().values
@@ -77,8 +104,8 @@ def create_site_dictionary(site_data, dt=15, omega=0.49, c=2, std_window=50):
     site_dictionary = {'df': df,
                        'acf': acf,
                        'timescale': timescale,
-                       'timescale_idx': idx
-
+                       'timescale_idx': idx,
+                       'seasonal': seasonal_component
     }
     
     return site_dictionary

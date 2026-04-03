@@ -37,6 +37,32 @@ def get_gage_height(df: pd.DataFrame) -> pd.Series:
     
     return df[cols[0]].to_numpy()
 
+def load_site(site_id, target_folder, start_date, end_date, download = True):
+    file_name = site_id +'.csv'
+    path = os.path.join(target_folder, file_name)
+
+    if os.path.exists(path):
+        print(f'loading site {site_id}')
+        df = pd.read_csv(path, index_col=0, parse_dates=True, dtype={'00065': 'float32'})
+        print(f'loaded data for site {site_id}')
+        return df
+
+    elif download: 
+        print(f"Downloading {site_id}...")
+        try:
+            df = download_iv(site_id, start_date, end_date)
+            print(f"  ✓ {len(df)} observations")
+
+            df.to_csv(path)
+            return df
+        except Exception as e:
+            print(f"  ✗ Failed: {e}")
+
+    else:
+        print(f'site {site_id} not in files and download is turned off')
+
+   
+
 
 def get_all_sites(site_ids, target_folder, start_date, end_date, download = True):
     """get data for multiple sites. Download if site is not in csv saved
@@ -53,7 +79,8 @@ def get_all_sites(site_ids, target_folder, start_date, end_date, download = True
         path = os.path.join(target_folder, file_name)
 
         if os.path.exists(path):
-            df = pd.read_csv(path, index_col=0, parse_dates=True)
+            print(f'loading site {site_id}')
+            df = pd.read_csv(path, index_col=0, parse_dates=True, low_memory=False)
             # y = get_gage_height(df)
             raw_data[site_id] = df
 
