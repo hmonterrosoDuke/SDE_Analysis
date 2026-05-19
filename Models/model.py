@@ -65,3 +65,34 @@ def get_equilibrium(edges, F1):
     else:
         # Fallback: where |F1| is minimum
         return x[np.argmin(np.abs(y))]
+    
+    
+def get_equilibrium_log(edges, F1, lower_trim=None):
+    """Get equilibrium where drift crosses zero, anchored to the right of the peak."""
+    mask = np.isfinite(edges) & np.isfinite(F1)
+    x = edges[mask]
+    y = F1[mask]
+
+    if lower_trim is not None:
+        x_min = np.quantile(x, lower_trim)
+        trim_mask = x >= x_min
+        x = x[trim_mask]
+        y = y[trim_mask]
+
+    # Find peak first
+    peak_idx = np.argmax(y)
+
+    # Only look for zero crossing to the right of peak
+    y_right = y[peak_idx:]
+    x_right = x[peak_idx:]
+
+    sign_change = np.where((y_right[:-1] > 0) & (y_right[1:] < 0))[0]
+
+    if len(sign_change) > 0:
+        i = sign_change[0]
+        x1, x2 = x_right[i], x_right[i+1]
+        y1, y2 = y_right[i], y_right[i+1]
+        y_eq = x1 - y1 * (x2 - x1) / (y2 - y1)
+        return y_eq
+    else:
+        return x[np.argmin(np.abs(y))]

@@ -17,16 +17,40 @@ class ProductModel(Model):
         x, y, weights = self._preprocess(edges, F1)
 
         def model(y_arr, m, a, alpha):
-            diff = y_arr - y_eq  # y_eq captured from outer scope
+            diff = y_arr - y_eq
             return m * diff * (1 + a * np.abs(diff)**(alpha - 1))
-        
-        sigma = 1/weights
-    
-        popt, _ = curve_fit(model, x, y, p0=[-1e-4, 0.01, 2.0], sigma = sigma,
-                            bounds=([-5, -2, 0.1], [2, 10, 10]), maxfev=5000)
-        m, a, alpha = popt
 
-        
+        sigma = 1 / weights
+
+        # Try multiple initializations, keep best
+        p0_candidates = [
+            [-1e-4, 0.01, 3.0],
+            [-1e-3, 0.1,  4.0],
+            [-1e-2, 1.0,  5.0],
+            [-1e-4, 0.01, 7.0],
+            [-1e-3, 0.5,  2.0],
+        ]
+
+        best_popt, best_cost = None, np.inf
+        for p0 in p0_candidates:
+            try:
+                popt, _ = curve_fit(
+                    model, x, y,
+                    p0=p0,
+                    sigma=sigma,
+                    bounds=([-5, -2, 1.1], [3, 15, 15]),
+                    maxfev=5000
+                )
+                cost = np.sum(((model(x, *popt) - y) * weights) ** 2)
+                if cost < best_cost:
+                    best_popt, best_cost = popt, cost
+            except Exception:
+                continue
+
+        if best_popt is None:
+            raise RuntimeError("All initializations failed")
+
+        m, a, alpha = best_popt
         self.params = {
             'y_eq': y_eq,
             'm': m,

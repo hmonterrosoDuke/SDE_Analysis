@@ -62,7 +62,8 @@ def deseasonalize(y, timestamps, method='stl'):
         return pd.Series(res.resid, index=y.index), \
                pd.Series(res.seasonal, index=y.index)
 
-def preprocess_data(site_data, norm_pctle = 0.995, dt = 15, deseasonalize_method=None):
+def preprocess_data(site_data, norm_pctle=0.995, dt=15, 
+                    deseasonalize_method=None, log_data=False):
     y = site_data['00065']
     y_intrp = y.interpolate(method='time').dropna()
     y_intrp = y_intrp - np.median(y_intrp)
@@ -72,16 +73,20 @@ def preprocess_data(site_data, norm_pctle = 0.995, dt = 15, deseasonalize_method
         y_intrp, seasonal_component = deseasonalize(
             y_intrp, y_intrp.index, method=deseasonalize_method)
 
-    y_norm = y_intrp/np.quantile(y_intrp,norm_pctle)
+    y_norm = y_intrp / np.quantile(y_intrp, norm_pctle)
     acf = compute_acf(y_norm)
-    y_norm = y_norm - np.min(y_norm)
-    timescale, idx = integral_timescale(acf, dt = dt)
+    
+    y_norm = y_norm - np.min(y_norm) + 1e-3 
+
+    if log_data:
+        y_norm = np.log(y_norm)
+
+    timescale, idx = integral_timescale(acf, dt=dt)
 
     return y_norm, acf, timescale, idx, seasonal_component
 
-
-def create_site_dictionary(site_data, dt=15, omega=0.49, c=2, std_window=50, deseasonalize_method= None):
-    y_norm, acf, timescale, idx, seasonal_component = preprocess_data(site_data, norm_pctle=0.995, dt=dt, deseasonalize_method=deseasonalize_method)
+def create_site_dictionary(site_data, dt=15, omega=0.49, c=2, std_window=50, deseasonalize_method= None, log_data= False):
+    y_norm, acf, timescale, idx, seasonal_component = preprocess_data(site_data, norm_pctle=0.995, dt=dt, deseasonalize_method=deseasonalize_method, log_data = log_data)
     dy = np.diff(y_norm)
     
     local_std = pd.Series(y_norm).rolling(std_window, center=True, min_periods=10).std().values
